@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#090b10">
-    <title>VarioGuard AI - Background Mode</title>
+    <title>VarioGuard AI - Bilingual & Gender Voice</title>
     <style>
         :root {
             --bg-dark: #090b10;
@@ -33,8 +33,88 @@
             flex-direction: column;
             align-items: center;
             padding: 18px 16px 32px;
+            overflow-x: hidden;
         }
 
+        /* --- LOADING / SPLASH SCREEN --- */
+        #loadingScreen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #141b2d 0%, #07090d 85%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.55s ease, visibility 0.55s ease;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader-ring {
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            border: 3px solid rgba(0, 245, 155, 0.12);
+            border-top-color: var(--safe-color);
+            border-right-color: #3b82f6;
+            animation: spin 1s linear infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 28px rgba(0, 245, 155, 0.25);
+        }
+
+        .loader-core {
+            font-size: 1.6rem;
+            animation: pulse 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.9); opacity: 0.7; }
+            to { transform: scale(1.12); opacity: 1; }
+        }
+
+        .loader-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, #00f59b, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .loader-bar-wrap {
+            width: 210px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .loader-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00f59b, #3b82f6);
+            transition: width 0.25s ease;
+        }
+
+        .loader-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* --- MAIN APP CONTAINER --- */
         .container {
             width: 100%;
             max-width: 440px;
@@ -47,20 +127,45 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 4px;
+            padding: 6px 2px;
+            gap: 8px;
         }
 
         .brand {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-right {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .status-pill {
+        .lang-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 5px 10px;
+            border-radius: 14px;
             font-size: 0.75rem;
-            padding: 5px 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .lang-toggle:active {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .status-pill {
+            font-size: 0.72rem;
+            padding: 5px 10px;
             border-radius: 20px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -252,28 +357,44 @@
 </head>
 <body>
 
+<!-- LOADING / SPLASH SCREEN -->
+<div id="loadingScreen">
+    <div class="loader-ring">
+        <div class="loader-core">⚡</div>
+    </div>
+    <div class="loader-title">VarioGuard AI</div>
+    <div class="loader-bar-wrap">
+        <div class="loader-bar" id="loaderBar"></div>
+    </div>
+    <div class="loader-sub" id="loaderText">Initializing AI Telemetry...</div>
+</div>
+
+<!-- MAIN DASHBOARD -->
 <div class="container">
     <div class="header">
         <div class="brand">⚡ VarioGuard AI</div>
-        <div class="status-pill">
-            <span class="dot" id="gpsDot"></span>
-            <span id="gpsStatusText">GPS Stand-by</span>
+        <div class="header-right">
+            <button class="lang-toggle" id="langBtn" onclick="toggleLanguage()">🌐 ID (♀)</button>
+            <div class="status-pill">
+                <span class="dot" id="gpsDot"></span>
+                <span id="gpsStatusText">GPS Stand-by</span>
+            </div>
         </div>
     </div>
 
     <div class="glass-card speed-card state-safe" id="speedCard">
         <div class="speed-value" id="speedDisplay">0</div>
-        <div class="speed-unit">KM / JAM</div>
+        <div class="speed-unit" id="unitLabel">KM / JAM</div>
         <div class="ai-badge" id="aiStatusBadge">AI Siap • Mode Mandiri</div>
-        <span class="bg-badge" id="bgStatusText">Background Keep-Alive: Off</span>
+        <span class="bg-badge" id="bgStatusText">Notifikasi & Background: Off</span>
 
         <div class="metrics-row">
             <div class="metric-box">
-                <span>Akselerasi (Δv/Δt)</span>
+                <span id="accelLabel">Akselerasi (Δv/Δt)</span>
                 <strong id="accelDisplay">0.0 km/j²</strong>
             </div>
             <div class="metric-box">
-                <span>Prediksi 2 Detik</span>
+                <span id="predLabel">Prediksi 2 Detik</span>
                 <strong id="predDisplay">0 km/j</strong>
             </div>
         </div>
@@ -281,19 +402,19 @@
 
     <div class="glass-card control-group">
         <div class="control-header">
-            <span>Batas Kecepatan Maksimal</span>
-            <span class="limit-badge"><span id="limitVal">70</span> km/j</span>
+            <span id="limitTitle">Batas Kecepatan Maksimal</span>
+            <span class="limit-badge"><span id="limitVal">70</span> <span id="limitUnit">km/j</span></span>
         </div>
         <input type="range" id="limitSlider" min="30" max="120" step="5" value="70">
         <div class="preset-btns">
-            <button class="preset-btn" onclick="setLimit(50)">Kota (50)</button>
-            <button class="preset-btn" onclick="setLimit(70)">Normal (70)</button>
-            <button class="preset-btn" onclick="setLimit(85)">Lintas (85)</button>
+            <button class="preset-btn" id="presetCity" onclick="setLimit(50)">Kota (50)</button>
+            <button class="preset-btn" id="presetNormal" onclick="setLimit(70)">Normal (70)</button>
+            <button class="preset-btn" id="presetHighway" onclick="setLimit(85)">Lintas (85)</button>
         </div>
     </div>
 
     <button class="btn btn-primary" id="toggleGpsBtn" onclick="toggleTracking()">
-        ▶ Mulai AI + Aktifkan Latar Belakang
+        ▶ Mulai AI + Munculkan Notifikasi
     </button>
 
     <button class="btn btn-ble" id="bleBtn" onclick="connectSmartwatch()">
@@ -301,18 +422,231 @@
     </button>
 
     <button class="btn btn-sim" id="simBtn" onclick="toggleSimulation()">
-        🧪 Tes Simulasi Ngebut (Cek Suara TTS)
+        🧪 Tes Simulasi Ngebut (Cek Notif & Suara)
     </button>
 
     <div class="log-box" id="logBox">
-        [System] Siap. Tekan Mulai untuk mengaktifkan mode latar belakang.
+        [System] Tekan Mulai untuk mengizinkan notifikasi luar aplikasi.
     </div>
 </div>
 
 <script>
-    // --- GENERATOR SILENT AUDIO WAV (AGAR CHROME TETAP HIDUP DI LATAR BELAKANG) ---
+    // --- KAMUS BAHASA (INDONESIA CEWE & ENGLISH COWO) ---
+    let currentLang = localStorage.getItem("vg_lang") || "id";
+    let availableVoices = [];
+
+    function muatDaftarSuara() {
+        if ('speechSynthesis' in window) {
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+    }
+    muatDaftarSuara();
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = muatDaftarSuara;
+    }
+
+    const I18N = {
+        id: {
+            ttsLocale: "id-ID",
+            langBadge: "🌐 ID (♀)",
+            unitBig: "KM / JAM",
+            unitShort: "km/j",
+            accelUnit: "km/j²",
+            gpsStandby: "GPS Stand-by",
+            gpsAccurate: (m) => `GPS Akurat (±${m}m)`,
+            gpsWeak: "Sinyal GPS Lemah",
+            aiReady: "AI Siap • Mode Mandiri",
+            aiSafeWatch: "Terhubung Smartwatch • Aman",
+            aiSafeSolo: "AI Aktif • Kecepatan Aman",
+            aiNearLimit: (lim) => `Mendekati Batas (${lim} km/j)`,
+            aiHighAccel: (pred) => `⚡ Gas Terlalu Cepat (Prediksi ${pred})`,
+            aiOverSpeed: (lim) => `⚠️ OVER SPEED! (> ${lim} km/j)`,
+            bgOff: "Notifikasi & Background: Off",
+            bgOn: "Notifikasi Panel Atas & Background: AKTIF",
+            accelLabel: "Akselerasi (Δv/Δt)",
+            predLabel: "Prediksi 2 Detik",
+            limitTitle: "Batas Kecepatan Maksimal",
+            presetCity: "Kota (50)",
+            presetNormal: "Normal (70)",
+            presetHighway: "Lintas (85)",
+            btnStart: "▶ Mulai AI + Munculkan Notifikasi",
+            btnStop: "⏹ Hentikan Monitoring",
+            btnBle: "⌚ Hubungkan Smartwatch (BLE)",
+            btnBleConnected: (name) => `✅ Terhubung: ${name}`,
+            btnSimStart: "🧪 Tes Simulasi Ngebut (Cek Notif & Suara)",
+            btnSimStop: "⏹ Hentikan Simulasi",
+            voiceLimitSet: (val) => `Batas kecepatan diatur ke ${val} kilometer per jam`,
+            voiceActive: "Sistem AI peringatan kecepatan aktif.",
+            voiceOverSpeed: (spd) => `Peringatan! Kecepatan ${spd} kilometer per jam, melewati batas!`,
+            voiceHighAccel: (lim) => `Hati-hati, akselerasi tinggi, mendekati batas ${lim}`,
+            voiceWatchConnected: "Smartwatch berhasil terhubung.",
+            voiceWatchOver: (lim) => `Peringatan dari jam tangan! Kecepatan melewati batas ${lim}!`,
+            voiceWatchWarn: "Hati-hati, kecepatan mulai tinggi.",
+            voiceSimStart: "Memulai simulasi pengujian kecepatan.",
+            notifActiveTitle: "⚡ VarioGuard AI Aktif",
+            notifActiveBody: (lim) => `Memantau kecepatan (Batas: ${lim} km/j). Ketuk notifikasi ini untuk buka aplikasi.`,
+            notifOverTitle: (spd) => `⚠️ OVER SPEED: ${spd} km/j!`,
+            notifOverBody: (lim) => `Melewati batas aman ${lim} km/j. Ketuk untuk membuka VarioGuard AI.`,
+            notifWatchTitle: "⚠️ SMARTWATCH ALERT!",
+            notifWatchBody: (lim) => `Kecepatan melewati batas ${lim} km/j!`,
+            mediaTitle: (spd, lim) => `Kecepatan: ${spd} km/j (Batas ${lim})`,
+            mediaArtistOver: "⚠️ OVER SPEED! Tap untuk buka",
+            mediaArtistSafe: "VarioGuard AI Aktif",
+            mediaAlbumWatch: "Smartwatch Terhubung",
+            mediaAlbumSolo: "Mode Mandiri",
+            langChangedLog: "Bahasa diubah ke Indonesia (Suara Cewek)."
+        },
+        en: {
+            ttsLocale: "en-US",
+            langBadge: "🌐 EN (♂)",
+            unitBig: "KM / H",
+            unitShort: "km/h",
+            accelUnit: "km/h²",
+            gpsStandby: "GPS Stand-by",
+            gpsAccurate: (m) => `GPS Locked (±${m}m)`,
+            gpsWeak: "Weak GPS Signal",
+            aiReady: "AI Ready • Standalone Mode",
+            aiSafeWatch: "Smartwatch Linked • Safe",
+            aiSafeSolo: "AI Active • Safe Speed",
+            aiNearLimit: (lim) => `Approaching Limit (${lim} km/h)`,
+            aiHighAccel: (pred) => `⚡ Rapid Acceleration (Pred. ${pred})`,
+            aiOverSpeed: (lim) => `⚠️ OVER SPEED! (> ${lim} km/h)`,
+            bgOff: "Notification & Background: Off",
+            bgOn: "Top Bar Notification & Background: ACTIVE",
+            accelLabel: "Acceleration (Δv/Δt)",
+            predLabel: "2-Sec Prediction",
+            limitTitle: "Maximum Speed Limit",
+            presetCity: "City (50)",
+            presetNormal: "Normal (70)",
+            presetHighway: "Highway (85)",
+            btnStart: "▶ Start AI + Enable Notification",
+            btnStop: "⏹ Stop Monitoring",
+            btnBle: "⌚ Connect Smartwatch (BLE)",
+            btnBleConnected: (name) => `✅ Connected: ${name}`,
+            btnSimStart: "🧪 Test Speed Simulation (Check Voice & Notif)",
+            btnSimStop: "⏹ Stop Simulation",
+            voiceLimitSet: (val) => `Speed limit set to ${val} kilometers per hour`,
+            voiceActive: "AI speed alert system activated.",
+            voiceOverSpeed: (spd) => `Warning! Speed is ${spd} kilometers per hour, exceeding the limit!`,
+            voiceHighAccel: (lim) => `Caution, high acceleration, approaching ${lim} limit`,
+            voiceWatchConnected: "Smartwatch successfully connected.",
+            voiceWatchOver: (lim) => `Smartwatch alert! Speed exceeded ${lim} limit!`,
+            voiceWatchWarn: "Caution, speed is getting high.",
+            voiceSimStart: "Starting speed alert simulation.",
+            notifActiveTitle: "⚡ VarioGuard AI Active",
+            notifActiveBody: (lim) => `Monitoring speed (Limit: ${lim} km/h). Tap notification to open app.`,
+            notifOverTitle: (spd) => `⚠️ OVER SPEED: ${spd} km/h!`,
+            notifOverBody: (lim) => `Exceeded safe limit of ${lim} km/h. Tap to open VarioGuard AI.`,
+            notifWatchTitle: "⚠️ SMARTWATCH ALERT!",
+            notifWatchBody: (lim) => `Speed exceeded ${lim} km/h limit!`,
+            mediaTitle: (spd, lim) => `Speed: ${spd} km/h (Limit ${lim})`,
+            mediaArtistOver: "⚠️ OVER SPEED! Tap to open",
+            mediaArtistSafe: "VarioGuard AI Active",
+            mediaAlbumWatch: "Smartwatch Connected",
+            mediaAlbumSolo: "Standalone Mode",
+            langChangedLog: "Language switched to English (Male Voice)."
+        }
+    };
+
+    function t() {
+        return I18N[currentLang];
+    }
+
+    function applyLanguageUI() {
+        const lang = t();
+        document.documentElement.lang = currentLang;
+        document.getElementById("langBtn").textContent = lang.langBadge;
+        document.getElementById("unitLabel").textContent = lang.unitBig;
+        document.getElementById("accelLabel").textContent = lang.accelLabel;
+        document.getElementById("predLabel").textContent = lang.predLabel;
+        document.getElementById("limitTitle").textContent = lang.limitTitle;
+        document.getElementById("limitUnit").textContent = lang.unitShort;
+        document.getElementById("presetCity").textContent = lang.presetCity;
+        document.getElementById("presetNormal").textContent = lang.presetNormal;
+        document.getElementById("presetHighway").textContent = lang.presetHighway;
+
+        if (!isTracking) {
+            gpsStatusText.textContent = lang.gpsStandby;
+            toggleGpsBtn.innerHTML = lang.btnStart;
+            aiStatusBadge.textContent = lang.aiReady;
+        } else {
+            toggleGpsBtn.innerHTML = lang.btnStop;
+        }
+
+        const bgText = document.getElementById("bgStatusText");
+        bgText.textContent = (isTracking || simInterval) ? lang.bgOn : lang.bgOff;
+
+        if (!watchConnected) {
+            bleBtn.innerHTML = lang.btnBle;
+        } else if (bleDevice) {
+            bleBtn.innerHTML = lang.btnBleConnected(bleDevice.name || "Smartwatch");
+        }
+
+        document.getElementById("simBtn").textContent = simInterval ? lang.btnSimStop : lang.btnSimStart;
+        accelDisplay.textContent = `0.0 ${lang.accelUnit}`;
+        predDisplay.textContent = `0 ${lang.unitShort}`;
+    }
+
+    function toggleLanguage() {
+        currentLang = currentLang === "id" ? "en" : "id";
+        localStorage.setItem("vg_lang", currentLang);
+        applyLanguageUI();
+        addLog(t().langChangedLog);
+        ucapkanSuara(currentLang === "id" ? "Bahasa Indonesia aktif." : "English male voice activated.", true);
+    }
+
+    // --- SPLASH / LOADING SCREEN ANIMATION ---
+    window.addEventListener("DOMContentLoaded", () => {
+        muatDaftarSuara();
+        applyLanguageUI();
+        const bar = document.getElementById("loaderBar");
+        const sub = document.getElementById("loaderText");
+        const screen = document.getElementById("loadingScreen");
+
+        setTimeout(() => { bar.style.width = "40%"; sub.textContent = "Loading Predictive Engine..."; }, 250);
+        setTimeout(() => { bar.style.width = "80%"; sub.textContent = "Calibrating Voice Profiles..."; }, 650);
+        setTimeout(() => { bar.style.width = "100%"; sub.textContent = "Ready."; }, 1000);
+        setTimeout(() => { screen.classList.add("hidden"); }, 1300);
+    });
+
+    // --- NOTIFIKASI SISTEM ANDROID ---
+    let activeNotification = null;
+
+    async function mintaIzinDanKirimNotif(judul, isi, tagNotif = "varioguard-status", getar = false) {
+        if (!("Notification" in window)) return;
+
+        if (Notification.permission === "default") {
+            await Notification.requestPermission();
+        }
+
+        if (Notification.permission === "granted") {
+            try {
+                if (activeNotification && tagNotif === "varioguard-status") {
+                    activeNotification.close();
+                }
+
+                const notif = new Notification(judul, {
+                    body: isi,
+                    tag: tagNotif,
+                    renotify: getar,
+                    requireInteraction: true,
+                    silent: !getar
+                });
+
+                notif.onclick = function() {
+                    window.focus();
+                    this.close();
+                };
+
+                if (tagNotif === "varioguard-status") {
+                    activeNotification = notif;
+                }
+            } catch (e) {}
+        }
+    }
+
+    // --- SILENT AUDIO WAV + MEDIA SESSION ---
     function buatSilentAudioWav() {
-        // WAV 1 detik 8kHz mono sunyi (44 byte header + 8000 byte nol)
         const buffer = new ArrayBuffer(44 + 8000);
         const view = new DataView(buffer);
         const writeStr = (offset, str) => {
@@ -332,34 +666,38 @@
         writeStr(36, 'data');
         view.setUint32(40, 8000, true);
         for (let i = 44; i < 44 + 8000; i++) view.setUint8(i, 128);
-        const blob = new Blob([buffer], { type: 'audio/wav' });
-        return URL.createObjectURL(blob);
+        return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
     }
 
     const bgAudio = new Audio(buatSilentAudioWav());
     bgAudio.loop = true;
 
     function aktifkanBackgroundMode(aktif) {
+        const lang = t();
         const bgText = document.getElementById("bgStatusText");
         if (aktif) {
             bgAudio.play().then(() => {
-                bgText.textContent = "Background Keep-Alive: AKTIF (Aman dikantongi)";
+                bgText.textContent = lang.bgOn;
                 bgText.style.color = "#00f59b";
                 if ('mediaSession' in navigator) {
                     navigator.mediaSession.metadata = new MediaMetadata({
-                        title: 'VarioGuard AI Speed Monitor',
-                        artist: `Batas Aman: ${speedLimit} km/jam`,
-                        album: 'Active Background Telemetry'
+                        title: lang.notifActiveTitle,
+                        artist: lang.notifActiveBody(speedLimit),
+                        album: lang.mediaAlbumSolo
                     });
                     navigator.mediaSession.playbackState = 'playing';
                 }
-                addLog("Background Keep-Alive aktif (Notifikasi media muncul).");
-            }).catch(e => {
-                addLog("Info Audio BG: " + e.message);
-            });
+                mintaIzinDanKirimNotif(
+                    lang.notifActiveTitle,
+                    lang.notifActiveBody(speedLimit),
+                    "varioguard-status",
+                    false
+                );
+            }).catch(() => {});
         } else {
             bgAudio.pause();
-            bgText.textContent = "Background Keep-Alive: Off";
+            if (activeNotification) activeNotification.close();
+            bgText.textContent = lang.bgOff;
             bgText.style.color = "#60a5fa";
         }
     }
@@ -382,6 +720,7 @@
     let prevSpeed = 0;
     let prevTimestamp = Date.now();
     let lastVoiceAlertTime = 0;
+    let lastNotifAlertTime = 0;
     let simInterval = null;
 
     const speedDisplay = document.getElementById("speedDisplay");
@@ -411,8 +750,41 @@
         speedLimit = val;
         limitSlider.value = val;
         limitVal.textContent = val;
-        ucapkanSuara(`Batas kecepatan diatur ke ${val} kilometer per jam`, true);
-        addLog(`Limit diubah: ${val} km/j`);
+        ucapkanSuara(t().voiceLimitSet(val), true);
+        addLog(`Limit: ${val} ${t().unitShort}`);
+    }
+
+    // --- PEMILIH SUARA OTOMATIS (EN = COWO, ID = CEWE) ---
+    function pilihSuaraSesuaiGender(utterance) {
+        if (!availableVoices.length) {
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+
+        if (currentLang === "en") {
+            // Cari suara Bahasa Inggris COWOK
+            const enVoices = availableVoices.filter(v => v.lang.toLowerCase().startsWith("en"));
+            const maleKeywords = ["male", "guy", "andrew", "brian", "christopher", "david", "mark", "james", "roger", "george", "daniel", "ryan", "rishi", "en-us-x-iol", "en-us-x-iom", "en-gb-x-gbd", "en-gb-x-rjs"];
+            const femaleKeywords = ["female", "jenny", "aria", "sara", "zira", "samantha", "victoria", "karen", "moira", "tessa", "fiona", "en-us-x-sfg", "en-us-x-tpf", "en-gb-x-gba"];
+
+            let chosen = enVoices.find(v => maleKeywords.some(k => v.name.toLowerCase().includes(k)));
+            if (!chosen) {
+                chosen = enVoices.find(v => !femaleKeywords.some(k => v.name.toLowerCase().includes(k)));
+            }
+            if (chosen) utterance.voice = chosen;
+            utterance.pitch = 0.85; // Nada lebih berat/cowo
+        } else {
+            // Cari suara Bahasa Indonesia CEWEK
+            const idVoices = availableVoices.filter(v => v.lang.toLowerCase().startsWith("id"));
+            const femaleKeywords = ["female", "gadis", "google bahasa indonesia", "id-id-x-idc", "id-id-x-dfz", "damayanti"];
+            const maleKeywords = ["male", "ardi", "id-id-x-idd"];
+
+            let chosen = idVoices.find(v => femaleKeywords.some(k => v.name.toLowerCase().includes(k)));
+            if (!chosen) {
+                chosen = idVoices.find(v => !maleKeywords.some(k => v.name.toLowerCase().includes(k)));
+            }
+            if (chosen) utterance.voice = chosen;
+            utterance.pitch = 1.08; // Nada natural cewek
+        }
     }
 
     function ucapkanSuara(teks, paksa = false) {
@@ -422,14 +794,16 @@
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(teks);
-            utterance.lang = 'id-ID';
-            utterance.rate = 1.05;
+            utterance.lang = t().ttsLocale;
+            utterance.rate = 1.04;
+            pilihSuaraSesuaiGender(utterance);
             window.speechSynthesis.speak(utterance);
             lastVoiceAlertTime = now;
         }
     }
 
     function prosesDataKecepatan(speedKmh) {
+        const lang = t();
         const now = Date.now();
         const dt = Math.max(0.2, (now - prevTimestamp) / 1000);
         const accel = (speedKmh - prevSpeed) / dt;
@@ -440,32 +814,41 @@
         currentSpeed = Math.round(speedKmh);
 
         speedDisplay.textContent = currentSpeed;
-        accelDisplay.textContent = `${accel.toFixed(1)} km/j²`;
-        predDisplay.textContent = `${Math.round(predictedSpeed2s)} km/j`;
+        accelDisplay.textContent = `${accel.toFixed(1)} ${lang.accelUnit}`;
+        predDisplay.textContent = `${Math.round(predictedSpeed2s)} ${lang.unitShort}`;
 
-        // Update info di notifikasi kunci layar HP
-        if ('mediaSession' in navigator && isTracking) {
+        if ('mediaSession' in navigator && (isTracking || simInterval)) {
             navigator.mediaSession.metadata = new MediaMetadata({
-                title: `Kecepatan: ${currentSpeed} km/j (Batas ${speedLimit})`,
-                artist: currentSpeed > speedLimit ? '⚠️ OVER SPEED!' : 'VarioGuard AI Aktif',
-                album: watchConnected ? 'Smartwatch Terhubung' : 'Mode Mandiri'
+                title: lang.mediaTitle(currentSpeed, speedLimit),
+                artist: currentSpeed > speedLimit ? lang.mediaArtistOver : lang.mediaArtistSafe,
+                album: watchConnected ? lang.mediaAlbumWatch : lang.mediaAlbumSolo
             });
         }
 
         kirimKeSmartwatch(`SPD:${currentSpeed},LIM:${speedLimit}\n`);
 
         if (currentSpeed > speedLimit) {
-            setVisualState("danger", `⚠️ OVER SPEED! (> ${speedLimit} km/j)`);
-            ucapkanSuara(`Peringatan! Kecepatan ${currentSpeed} kilometer per jam, melewati batas!`);
+            setVisualState("danger", lang.aiOverSpeed(speedLimit));
+            ucapkanSuara(lang.voiceOverSpeed(currentSpeed));
             kirimKeSmartwatch("CMD:VIB_LONG\n");
+
+            if (now - lastNotifAlertTime > 6000) {
+                mintaIzinDanKirimNotif(
+                    lang.notifOverTitle(currentSpeed),
+                    lang.notifOverBody(speedLimit),
+                    "varioguard-alert",
+                    true
+                );
+                lastNotifAlertTime = now;
+            }
         } else if (predictedSpeed2s > speedLimit && accel > 3.5 && currentSpeed > (speedLimit * 0.75)) {
-            setVisualState("warn", `⚡ Gas Terlalu Cepat (Prediksi ${Math.round(predictedSpeed2s)})`);
-            ucapkanSuara(`Hati-hati, akselerasi tinggi, mendekati batas ${speedLimit}`);
+            setVisualState("warn", lang.aiHighAccel(Math.round(predictedSpeed2s)));
+            ucapkanSuara(lang.voiceHighAccel(speedLimit));
             kirimKeSmartwatch("CMD:VIB_SHORT\n");
         } else if (currentSpeed >= speedLimit - 5) {
-            setVisualState("warn", `Mendekati Batas (${speedLimit} km/j)`);
+            setVisualState("warn", lang.aiNearLimit(speedLimit));
         } else {
-            setVisualState("safe", watchConnected ? "Terhubung Smartwatch • Aman" : "AI Aktif • Kecepatan Aman");
+            setVisualState("safe", watchConnected ? lang.aiSafeWatch : lang.aiSafeSolo);
         }
     }
 
@@ -489,9 +872,10 @@
     }
 
     async function toggleTracking() {
+        const lang = t();
         if (!isTracking) {
             if (!("geolocation" in navigator)) {
-                alert("Browser tidak mendukung GPS.");
+                alert("GPS not supported.");
                 return;
             }
 
@@ -502,48 +886,49 @@
             } catch (e) {}
 
             aktifkanBackgroundMode(true);
-            ucapkanSuara("Sistem AI peringatan kecepatan aktif di latar belakang.", true);
+            ucapkanSuara(lang.voiceActive, true);
 
             watchId = navigator.geolocation.watchPosition(
                 (pos) => {
                     gpsDot.classList.add("active");
-                    gpsStatusText.textContent = `GPS Akurat (±${Math.round(pos.coords.accuracy)}m)`;
+                    gpsStatusText.textContent = t().gpsAccurate(Math.round(pos.coords.accuracy));
                     const speedMs = pos.coords.speed || 0;
                     prosesDataKecepatan(speedMs * 3.6);
                 },
                 (err) => {
-                    gpsStatusText.textContent = "Sinyal GPS Lemah";
-                    addLog(`GPS Error: ${err.message}`);
+                    gpsStatusText.textContent = t().gpsWeak;
+                    addLog(`GPS: ${err.message}`);
                 },
                 { enableHighAccuracy: true, maximumAge: 500, timeout: 5000 }
             );
 
             isTracking = true;
             toggleGpsBtn.className = "btn btn-stop";
-            toggleGpsBtn.innerHTML = "⏹ Hentikan Monitoring";
-            addLog("Monitoring GPS + Voice AI dimulai.");
+            toggleGpsBtn.innerHTML = lang.btnStop;
+            addLog("Monitoring started.");
         } else {
             navigator.geolocation.clearWatch(watchId);
             if (wakeLock) wakeLock.release();
             aktifkanBackgroundMode(false);
             isTracking = false;
             gpsDot.classList.remove("active");
-            gpsStatusText.textContent = "GPS Stand-by";
+            gpsStatusText.textContent = lang.gpsStandby;
             toggleGpsBtn.className = "btn btn-primary";
-            toggleGpsBtn.innerHTML = "▶ Mulai AI + Aktifkan Latar Belakang";
+            toggleGpsBtn.innerHTML = lang.btnStart;
             prosesDataKecepatan(0);
-            addLog("Monitoring dihentikan.");
+            addLog("Monitoring stopped.");
         }
     }
 
     async function connectSmartwatch() {
+        const lang = t();
         if (!navigator.bluetooth) {
-            alert("Web Bluetooth hanya jalan di Google Chrome Android dengan alamat HTTPS.");
+            alert("Web Bluetooth requires Chrome Android over HTTPS.");
             return;
         }
 
         try {
-            addLog("Memindai Smartwatch BLE...");
+            addLog("Scanning Smartwatch BLE...");
             bleDevice = await navigator.bluetooth.requestDevice({
                 acceptAllDevices: true,
                 optionalServices: [NUS_SERVICE_UUID]
@@ -551,8 +936,8 @@
 
             bleDevice.addEventListener('gattserverdisconnected', () => {
                 watchConnected = false;
-                bleBtn.innerHTML = "⌚ Hubungkan Smartwatch (BLE)";
-                addLog("Smartwatch terputus.");
+                bleBtn.innerHTML = t().btnBle;
+                addLog("Smartwatch disconnected.");
             });
 
             const server = await bleDevice.gatt.connect();
@@ -563,20 +948,21 @@
             await txCharacteristic.startNotifications();
             txCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
                 const value = new TextDecoder().decode(event.target.value).trim();
-                addLog(`Dari Jam: ${value}`);
+                addLog(`Watch: ${value}`);
                 if (value === "ALERT:OVER") {
-                    ucapkanSuara(`Peringatan dari jam tangan! Kecepatan melewati batas ${speedLimit}!`, true);
+                    ucapkanSuara(t().voiceWatchOver(speedLimit), true);
+                    mintaIzinDanKirimNotif(t().notifWatchTitle, t().notifWatchBody(speedLimit), "varioguard-alert", true);
                 } else if (value === "ALERT:WARN") {
-                    ucapkanSuara("Hati-hati, kecepatan mulai tinggi.", true);
+                    ucapkanSuara(t().voiceWatchWarn, true);
                 }
             });
 
             watchConnected = true;
-            bleBtn.innerHTML = `✅ Terhubung: ${bleDevice.name || "Smartwatch"}`;
-            ucapkanSuara("Smartwatch berhasil terhubung.", true);
-            addLog(`Terhubung ke ${bleDevice.name}`);
+            bleBtn.innerHTML = lang.btnBleConnected(bleDevice.name || "Smartwatch");
+            ucapkanSuara(lang.voiceWatchConnected, true);
+            addLog(`Connected: ${bleDevice.name}`);
         } catch (error) {
-            addLog(`BLE Info: ${error.message}`);
+            addLog(`BLE: ${error.message}`);
         }
     }
 
@@ -590,20 +976,21 @@
     }
 
     function toggleSimulation() {
+        const lang = t();
         if (simInterval) {
             clearInterval(simInterval);
             simInterval = null;
             aktifkanBackgroundMode(false);
-            document.getElementById("simBtn").textContent = "🧪 Tes Simulasi Ngebut (Cek Suara TTS)";
+            document.getElementById("simBtn").textContent = lang.btnSimStart;
             prosesDataKecepatan(0);
-            addLog("Simulasi selesai.");
+            addLog("Simulation stopped.");
             return;
         }
 
         aktifkanBackgroundMode(true);
-        ucapkanSuara("Memulai simulasi pengujian kecepatan di latar belakang.", true);
-        document.getElementById("simBtn").textContent = "⏹ Hentikan Simulasi";
-        addLog("Simulasi berjalan (20 -> 95 km/j)...");
+        ucapkanSuara(lang.voiceSimStart, true);
+        document.getElementById("simBtn").textContent = lang.btnSimStop;
+        addLog("Simulation running...");
         let simSpeed = 20;
 
         simInterval = setInterval(() => {
